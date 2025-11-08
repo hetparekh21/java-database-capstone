@@ -74,8 +74,10 @@ export async function loadAppointments() {
     const nameParam = patientName && patientName.length ? encodeURIComponent(patientName) : 'null';
     const res = await getAllAppointments(selectedDate, nameParam, token);
 
-    // backend may return { appointments: [...] } or { data: { appointments: [...] } }
-    const appointments = res?.appointments || res?.data?.appointments || [];
+  // backend may return an array of appointments or an object like { appointments: [...] } or { data: { appointments: [...] } }
+  let appointments = [];
+  if (Array.isArray(res)) appointments = res;
+  else appointments = res?.appointments || res?.data?.appointments || [];
 
     tableBody.innerHTML = '';
 

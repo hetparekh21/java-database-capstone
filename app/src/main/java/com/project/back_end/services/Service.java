@@ -1,6 +1,35 @@
 package com.project.back_end.services;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import com.project.back_end.repo.AdminRepository;
+import com.project.back_end.repo.DoctorRepository;
+import com.project.back_end.repo.PatientRepository;
+import com.project.back_end.services.DoctorService;
+import com.project.back_end.services.PatientService;
+
+@org.springframework.stereotype.Service
 public class Service {
+	private final TokenService tokenService;
+	private final AdminRepository adminRepository;
+	private final DoctorRepository doctorRepository;
+	private final PatientRepository patientRepository;
+	private final DoctorService doctorService;
+	private final PatientService patientService;
+
+	@Autowired
+	public Service(TokenService tokenService,
+			    AdminRepository adminRepository,
+			    DoctorRepository doctorRepository,
+			    PatientRepository patientRepository,
+			    DoctorService doctorService,
+			    PatientService patientService) {
+		this.tokenService = tokenService;
+		this.adminRepository = adminRepository;
+		this.doctorRepository = doctorRepository;
+		this.patientRepository = patientRepository;
+		this.doctorService = doctorService;
+		this.patientService = patientService;
+	}
 // 1. **@Service Annotation**
 // The @Service annotation marks this class as a service component in Spring. This allows Spring to automatically detect it through component scanning
 // and manage its lifecycle, enabling it to be injected into controllers or other services using @Autowired or constructor injection.
@@ -62,5 +91,121 @@ public class Service {
 // - If no filters are provided, it retrieves all appointments for the patient.
 // This flexible method supports patient-specific querying and enhances user experience on the client side.
 
+
+	/**
+	 * Validate a token for a given role.
+	 * Returns an empty string when token is valid for the role, otherwise returns an error message.
+	 */
+	public String validateToken(String token, String role) {
+		if (token == null || token.isEmpty()) return "Invalid token";
+		boolean ok = tokenService.validateToken(token, role);
+		return ok ? "" : "Invalid or expired token";
+	}
+
+
+	/**
+	 * Validate admin credentials. Returns a JWT token string on success, or null on failure.
+	 */
+	public String validateAdmin(String username, String password) {
+		if (username == null || password == null){ 
+                System.out.println("*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n");
+                System.out.println("Something is null : " + username + " / " + password);
+                System.out.println("*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n");
+                return null; 
+            }
+		try {
+			var admin = adminRepository.findByUsername(username);
+            System.out.println("*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n");
+            System.out.println("Admin found in Service: " + admin.getUsername());
+            System.out.println("*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n*\n");
+			if (admin == null) return null;
+			if (!admin.getPassword().equals(password)) return null;
+			// use username as token subject for admin
+			return tokenService.generateToken(admin.getUsername());
+		} catch (Exception e) {
+			System.out.println("Error validating admin: " + e.getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Filter doctors by name, speciality and time period. Delegates to DoctorService.
+	 */
+	public java.util.List<com. project.back_end.models.Doctor> filterDoctor(String name, String speciality, String time) {
+		return doctorService.filterDoctorsByNameSpecialityAndTime(name, speciality, time);
+	}
+
+	/**
+	 * Validate whether the requested appointment time is available for the doctor.
+	 * Returns: 1 = valid, 0 = invalid timeslot, -1 = doctor not found
+	 */
+	public int validateAppointment(Long doctorId, java.time.LocalDateTime requestedTime) {
+		if (doctorId == null || requestedTime == null) return 0;
+		var dOpt = doctorRepository.findById(doctorId);
+		if (dOpt.isEmpty()) return -1;
+		var doctor = dOpt.get();
+		var slots = doctor.getAvailableTimes();
+		if (slots == null) return 0;
+		java.time.LocalTime reqTime = requestedTime.toLocalTime();
+		for (String slot : slots) {
+			try {
+				String[] parts = slot.split("-");
+				java.time.LocalTime start = java.time.LocalTime.parse(parts[0].trim());
+				if (start.equals(reqTime)) return 1;
+			} catch (Exception e) {
+				// ignore malformed slot
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Check if patient with given email or phone already exists. Returns true if valid (no existing patient), false if duplicate.
+	 */
+	public boolean validatePatient(String email, String phone) {
+		if ((email == null || email.isBlank()) && (phone == null || phone.isBlank())) return false;
+		var p = patientRepository.findByEmailOrPhone(email, phone);
+		return p == null;
+	}
+
+	/**
+	 * Validate patient login; returns JWT token on success or null on failure.
+	 */
+	public String validatePatientLogin(String email, String password) {
+		if (email == null || password == null) return null;
+		try {
+			var patient = patientRepository.findByEmail(email);
+			if (patient == null) return null;
+			if (!patient.getPassword().equals(password)) return null;
+			return tokenService.generateToken(patient.getEmail());
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Filter a patient's appointment history based on condition and/or doctor name.
+	 * Delegates to PatientService for actual filters. Returns empty list on error.
+	 */
+	public java.util.List<com. project.back_end.DTO.AppointmentDTO> filterPatient(String token, String condition, String doctorName) {
+		try {
+			String identifier = tokenService.extractIdentifier(token);
+			if (identifier == null) return java.util.Collections.emptyList();
+			var patient = patientRepository.findByEmail(identifier);
+			if (patient == null) return java.util.Collections.emptyList();
+			Long patientId = patient.getId();
+			if ((condition == null || condition.isBlank()) && (doctorName == null || doctorName.isBlank())) {
+				return patientService.getPatientAppointments(patientId);
+			} else if (condition == null || condition.isBlank()) {
+				return patientService.filterByDoctor(patientId, doctorName);
+			} else if (doctorName == null || doctorName.isBlank()) {
+				return patientService.filterByCondition(patientId, condition);
+			} else {
+				return patientService.filterByDoctorAndCondition(patientId, doctorName, condition);
+			}
+		} catch (Exception e) {
+			return java.util.Collections.emptyList();
+		}
+	}
 
 }

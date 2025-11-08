@@ -47,9 +47,9 @@ export async function saveDoctor(doctor, token) {
 export async function filterDoctors(name, time, specialty) {
   try {
     // normalize to avoid 'null' in URL
-    const n = name ? encodeURIComponent(name) : '';
-    const t = time ? encodeURIComponent(time) : '';
-    const s = specialty ? encodeURIComponent(specialty) : '';
+    const n = name ? encodeURIComponent(name) : 'null';
+    const t = time ? encodeURIComponent(time) : 'null';
+    const s = specialty ? encodeURIComponent(specialty) : 'null';
     const response = await fetch(`${DOCTOR_API}/filter/${n}/${t}/${s}`);
     if (!response.ok) {
       console.error('Failed to filter doctors:', response.statusText);

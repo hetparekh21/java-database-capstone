@@ -92,11 +92,11 @@ h2 {
     align-items: center;
     flex-direction: column;
     text-align: center;
-    background-image: url('../images/doctorDashboard/background.jpg');
+    /* background-image: url('../images/doctorDashboard/background.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-attachment: fixed;
+    background-attachment: fixed; */
 }
 button {
     background-color: #015c5d;

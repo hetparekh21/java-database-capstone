@@ -105,6 +105,9 @@ public class Appointment {
 //    - A no-argument constructor is implicitly provided by JPA for entity creation.
 //    - A parameterized constructor can be added as needed to initialize fields.
 
+    public Appointment() {
+    }
+
     public Appointment(Long id, Doctor doctor, Patient patient, LocalDateTime appointmentTime, int status) {
         this.id = id;
         this.doctor = doctor;

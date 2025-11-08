@@ -107,3 +107,42 @@ button:hover {
 .dashboard-btn:hover {
     background-color: #003e3e;
 }
+
+/* Modal styles (matching `components/modals.js` / `index.html`) */
+#modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none; /* shown by JS */
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+.modal-inner {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 480px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+#closeModal {
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    float: right;
+    cursor: pointer;
+}
+#modal-body .input-field {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+#modal-body .dashboard-btn {
+    width: 100%;
+}
