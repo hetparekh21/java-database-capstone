@@ -56,3 +56,117 @@
     - Log the error to the console
     - Show a generic error message
 */
+
+import { API_BASE_URL } from '../config/config.js';
+
+const ADMIN_LOGIN_API = `${API_BASE_URL}/admin/login`;
+const DOCTOR_LOGIN_API = `${API_BASE_URL}/doctor/login`;
+
+// If pages provide buttons that open the login modals, wire them to call openModal when available
+window.addEventListener('load', () => {
+  try {
+    const adminBtn = document.getElementById('adminLogin');
+    const doctorBtn = document.getElementById('doctorLogin');
+    if (adminBtn) {
+      adminBtn.addEventListener('click', () => {
+        if (typeof window.openModal === 'function') return window.openModal('adminLogin');
+        // try dynamic import fallback
+        import('/js/components/modals.js').then(mod => mod.openModal('adminLogin')).catch(() => {
+          alert('Login modal is not available on this page.');
+        });
+      });
+    }
+
+    if (doctorBtn) {
+      doctorBtn.addEventListener('click', () => {
+        if (typeof window.openModal === 'function') return window.openModal('doctorLogin');
+        import('/js/components/modals.js').then(mod => mod.openModal('doctorLogin')).catch(() => {
+          alert('Login modal is not available on this page.');
+        });
+      });
+    }
+  } catch (e) {
+    console.warn('Error wiring login modal buttons', e);
+  }
+});
+
+// Admin login handler used by the admin login modal
+window.adminLoginHandler = async function () {
+  try {
+    const username = document.getElementById('username')?.value || '';
+    const password = document.getElementById('password')?.value || '';
+
+    const payload = { username, password };
+
+    const res = await fetch(ADMIN_LOGIN_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.message || 'Invalid admin credentials');
+      return;
+    }
+
+    const data = await res.json();
+    const token = data.token || data.data?.token || null;
+    if (!token) {
+      alert('Login succeeded but token not returned by server.');
+      return;
+    }
+
+    localStorage.setItem('token', token);
+    localStorage.setItem('userRole', 'admin');
+    if (typeof selectRole === 'function') {
+      selectRole('admin');
+    } else {
+      window.location.href = `/adminDashboard/${token}`;
+    }
+  } catch (error) {
+    console.error('adminLoginHandler error', error);
+    alert('An error occurred during admin login.');
+  }
+};
+
+// Doctor login handler used by the doctor login modal
+window.doctorLoginHandler = async function () {
+  try {
+    const email = document.getElementById('email')?.value || '';
+    const password = document.getElementById('password')?.value || '';
+    const payload = { email, password };
+
+    const res = await fetch(DOCTOR_LOGIN_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.message || 'Invalid doctor credentials');
+      return;
+    }
+
+    const data = await res.json();
+    const token = data.token || data.data?.token || null;
+    if (!token) {
+      alert('Login succeeded but token not returned by server.');
+      return;
+    }
+
+    localStorage.setItem('token', token);
+    localStorage.setItem('userRole', 'doctor');
+    if (typeof selectRole === 'function') {
+      selectRole('doctor');
+    } else {
+      window.location.href = `/doctorDashboard/${token}`;
+    }
+  } catch (error) {
+    console.error('doctorLoginHandler error', error);
+    alert('An error occurred during doctor login.');
+  }
+};
+
+

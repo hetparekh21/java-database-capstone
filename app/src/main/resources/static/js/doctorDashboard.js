@@ -52,3 +52,91 @@
     - Call renderContent() (assumes it sets up the UI layout)
     - Call loadAppointments() to display today's appointments by default
 */
+
+import { getAllAppointments } from './services/appointmentRecordService.js';
+import { createPatientRow } from './components/patientRows.js';
+
+const tableBody = document.getElementById('patientTableBody');
+let selectedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+const token = localStorage.getItem('token');
+let patientName = null;
+
+// Helpers to update UI rows
+function showMessageRow(message) {
+  if (!tableBody) return;
+  tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">${message}</td></tr>`;
+}
+
+// Load appointments for selectedDate and optional patientName filter
+export async function loadAppointments() {
+  if (!tableBody) return;
+  try {
+    const nameParam = patientName && patientName.length ? encodeURIComponent(patientName) : 'null';
+    const res = await getAllAppointments(selectedDate, nameParam, token);
+
+    // backend may return { appointments: [...] } or { data: { appointments: [...] } }
+    const appointments = res?.appointments || res?.data?.appointments || [];
+
+    tableBody.innerHTML = '';
+
+    if (!appointments || appointments.length === 0) {
+      showMessageRow('No Appointments found for the selected date.');
+      return;
+    }
+
+    // For each appointment, create patient row
+    appointments.forEach(app => {
+      const patient = {
+        id: app.patientId || app.patient?.id || 'N/A',
+        name: app.patientName || app.patient?.name || 'Unknown',
+        phone: app.patientPhone || app.patient?.phone || '-',
+        email: app.patientEmail || app.patient?.email || '-'
+      };
+
+      const appointmentId = app.id || app.appointmentId || null;
+      const doctorId = app.doctorId || app.doctor?.id || null;
+
+      const row = createPatientRow(patient, appointmentId, doctorId);
+      tableBody.appendChild(row);
+    });
+  } catch (error) {
+    console.error('Error loading appointments:', error);
+    showMessageRow('Error loading appointments. Try again later.');
+  }
+}
+
+// Search and filter wiring
+const searchBarEl = document.getElementById('searchBar');
+if (searchBarEl) {
+  searchBarEl.addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    patientName = v.length ? v : null;
+    loadAppointments();
+  });
+}
+
+const todayBtn = document.getElementById('todayButton');
+if (todayBtn) {
+  todayBtn.addEventListener('click', () => {
+    selectedDate = new Date().toISOString().split('T')[0];
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) datePicker.value = selectedDate;
+    loadAppointments();
+  });
+}
+
+const datePickerEl = document.getElementById('datePicker');
+if (datePickerEl) {
+  datePickerEl.value = selectedDate;
+  datePickerEl.addEventListener('change', (e) => {
+    selectedDate = e.target.value || selectedDate;
+    loadAppointments();
+  });
+}
+
+// On page load render content and appointments
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof renderContent === 'function') renderContent();
+  loadAppointments();
+});
+
